@@ -12,9 +12,6 @@ class Response:
     with get(f"{self.url}") as response:
       return response.text.splitlines()
     
-  # def split_response(self):
-  #   return self.fetch().text.splitlines()
-    
 class Hasher:
   def __init__(self, strings:list) -> None:
     self.strings = strings
@@ -34,7 +31,6 @@ class HashFinder:
         if self.hash_element == f"{self.hash_element[:5].upper()}{item.partition(":")[0]}":
           found.append(self.hash_element)
     return found
-
 
 class FileReader:
     def __init__(self, file_in: Path) -> None:
@@ -62,11 +58,9 @@ class PasswordValidator:
 
   def check_contain_number(self)-> bool:
     return any(char.isdigit for char in self.password)
-
       
   def check_contain_special_char(self)-> bool:
     return any(char in punctuation for char in self.password)
-
 
   def check_upper_lower(self)-> bool:
     has_upper = any(char.isupper() for char in self.password)
