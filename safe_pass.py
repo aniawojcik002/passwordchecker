@@ -10,29 +10,34 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-class Response:
-  def __init__(self, url: str) -> None:
-    self.url = url
+# class Response:
+#   def __init__(self, url: str) -> None:
+#     self.url = url
+#   def fetch(self) -> Response | None:
+#     with get(f"{self.url}") as response:
+#       return response.text.splitlines()
 
-  def fetch(self) -> Response | None:
-    with get(f"{self.url}") as response:
-      return response.text.splitlines() 
 
 class HashHandler:
-  def __init__(self, hash_element: str, hashes_list: list) -> None:
+  URL = 'https://api.pwnedpasswords.com/range/'
+  def __init__(self, hash_element: str) -> None:
     self.hash_element = hash_element
-    self.hashes_list = hashes_list
-  
-  def convert_to_hash(self) -> list:
-    return [sha1(element.encode('utf-8')).hexdigest() for element in self.hashes_list]
+    
+  def fetch(self) -> Response | None:
+    with get(f"{self.URL}{self.hash_element[:5]}") as response:
+      return response.text.splitlines() 
 
-  def is_found(self) -> list:
+  def convert_to_hash(self) -> list:
+    return sha1(self.hash_element.encode('utf-8')).hexdigest()
+
+  def is_found(self, hash_list) -> bool:
     found = []
-    for sublist in self.hashes_list: 
+    for sublist in hash_list: 
       for i, item in enumerate(sublist):
         if self.hash_element == f"{self.hash_element[:5].upper()}{item.partition(":")[0]}":
           found.append(self.hash_element)
-    return found
+          return True
+    return False
 
 class FileReader:
     def __init__(self, file_in: Path) -> None:
@@ -84,23 +89,18 @@ class PasswordValidator:
       return None
 
 def main():
-  url = 'https://api.pwnedpasswords.com/range/'
   file = FileReader(Path('passwords.txt'))
-  my_password_list = file.read_file()
-
-  for password in my_password_list:
-    PasswordValidator(password).validate()
-    my_passwords_hashes = HashHandler(password, my_password_list).convert_to_hash()
-
+  password_list = file.read_file()
   responses = []
-  for element in my_passwords_hashes:
-    response = Response(f"{url}{element[:5]}").fetch()
+  for password in password_list:
+    PasswordValidator(password).validate()
+    password_hash = HashHandler(password).convert_to_hash()
+    response = HashHandler(password_hash).fetch()
     responses.append(response)
 
-  for i, element in enumerate(my_passwords_hashes):
-    found = HashHandler(element.upper(), responses).is_found()
+    found = HashHandler(password_hash.upper()).is_found(responses)
     if found:
-      logging.critical(my_password_list[i])
+      logging.critical(password)
 
 main()
 
