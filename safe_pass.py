@@ -2,27 +2,29 @@ from string import punctuation
 from hashlib import sha1
 from requests import Response, get
 from pathlib import Path
+import logging
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,             # Minimum level to display
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 class Response:
-  def __init__(self, url:str) -> None:
+  def __init__(self, url: str) -> None:
     self.url = url
 
   def fetch(self) -> Response | None:
     with get(f"{self.url}") as response:
-      return response.text.splitlines()
-    
-class Hasher:
-  def __init__(self, strings:list) -> None:
-    self.strings = strings
+      return response.text.splitlines() 
 
-  def convert_to_hash(self) -> list:
-    return [sha1(element.encode('utf-8')).hexdigest() for element in self.strings]
-
-class HashFinder:
-  def __init__(self, hash_element:str, hashes_list:list) -> None:
+class HashHandler:
+  def __init__(self, hash_element: str, hashes_list: list) -> None:
     self.hash_element = hash_element
     self.hashes_list = hashes_list
+  
+  def convert_to_hash(self) -> list:
+    return [sha1(element.encode('utf-8')).hexdigest() for element in self.hashes_list]
 
   def is_found(self) -> list:
     found = []
@@ -47,10 +49,10 @@ class FileWriter:
 
     def write_to_file(self) -> None:
       with open(self.file_out, 'w', encoding='utf-8') as fout:
-        fout.write(str(self.text_to_write))
+        fout.write(self.text_to_write)
 
 class PasswordValidator:
-  def __init__(self, password:str) -> None:
+  def __init__(self, password: str) -> None:
     self.password = password
 
   def check_length(self) -> bool:
@@ -67,28 +69,28 @@ class PasswordValidator:
     has_lower = any(char.islower() for char in self.password)
     return has_upper and has_lower
   
-  def validate(self):
+  def validate(self) -> None:
     rules = [
       (self.check_length, "Za krótkie hasło"),
       (self.check_contain_number, "Nie zawiera numeru"),
       (self.check_contain_special_char, "Nie zawiera znaku specjalnego"),
-      (self.check_upper_lower, "Nie zawiera lower lub upper znaku")
+      (self.check_upper_lower, "Nie zawiera małych lub dużych liter")
     ]
 
     errors = [msg for func, msg in rules if not func()]
     if errors:
-      return " ".join(errors)
+      logging.warning("Password: %s | Errors: %s", self.password, ", ".join(errors))
     elif errors == []: 
-      return self.password
-  
-  def hash(self) -> str:
-    return sha1(self.password.encode('utf-8')).hexdigest()
+      return None
 
 def main():
   url = 'https://api.pwnedpasswords.com/range/'
   file = FileReader(Path('passwords.txt'))
   my_password_list = file.read_file()
-  my_passwords_hashes = Hasher(my_password_list).convert_to_hash()
+
+  for password in my_password_list:
+    PasswordValidator(password).validate()
+    my_passwords_hashes = HashHandler(password, my_password_list).convert_to_hash()
 
   responses = []
   for element in my_passwords_hashes:
@@ -96,9 +98,9 @@ def main():
     responses.append(response)
 
   for i, element in enumerate(my_passwords_hashes):
-    found = HashFinder(element.upper(), responses).is_found()
+    found = HashHandler(element.upper(), responses).is_found()
     if found:
-      print(my_password_list[i])
+      logging.critical(my_password_list[i])
 
 main()
 
