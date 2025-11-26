@@ -20,23 +20,27 @@ logging.basicConfig(
 
 class HashHandler:
   URL = 'https://api.pwnedpasswords.com/range/'
-  def __init__(self, hash_element: str) -> None:
-    self.hash_element = hash_element
+  def __init__(self, password: str) -> None:
+    self.password = password
+    self.hashed_password = self._convert_to_hash()
+    self.response_api = []
     
   def fetch(self) -> Response | None:
-    with get(f"{self.URL}{self.hash_element[:5]}") as response:
-      return response.text.splitlines() 
+    with get(f"{self.URL}{self.hashed_password[:5]}") as response:
+      response_api = response.text.splitlines() 
+      return response_api
 
-  def convert_to_hash(self) -> list:
-    return sha1(self.hash_element.encode('utf-8')).hexdigest()
+  def _convert_to_hash(self) -> list:
+    return sha1(self.password.encode('utf-8')).hexdigest()
 
-  def is_found(self, hash_list) -> bool:
+  def is_found(self) -> bool:
+    self.response_api = self.fetch()
     found = []
-    for sublist in hash_list: 
-      for i, item in enumerate(sublist):
-        if self.hash_element == f"{self.hash_element[:5].upper()}{item.partition(":")[0]}":
-          found.append(self.hash_element)
-          return True
+    # for sublist in hash_list: 
+    for i, item in enumerate(self.response_api):
+      if self.hashed_password.upper() == f"{self.hashed_password[:5].upper()}{item.partition(":")[0]}":
+        found.append(self.hashed_password)
+        return True
     return False
 
 class FileReader:
@@ -91,14 +95,10 @@ class PasswordValidator:
 def main():
   file = FileReader(Path('passwords.txt'))
   password_list = file.read_file()
-  responses = []
   for password in password_list:
     PasswordValidator(password).validate()
-    password_hash = HashHandler(password).convert_to_hash()
-    response = HashHandler(password_hash).fetch()
-    responses.append(response)
-
-    found = HashHandler(password_hash.upper()).is_found(responses)
+    password_hash = HashHandler(password)
+    found = password_hash.is_found()
     if found:
       logging.critical(password)
 
