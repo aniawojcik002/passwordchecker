@@ -9,15 +9,6 @@ logging.basicConfig(
     level=logging.INFO,             # Minimum level to display
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
-
-# class Response:
-#   def __init__(self, url: str) -> None:
-#     self.url = url
-#   def fetch(self) -> Response | None:
-#     with get(f"{self.url}") as response:
-#       return response.text.splitlines()
-
-
 class HashHandler:
   URL = 'https://api.pwnedpasswords.com/range/'
   def __init__(self, password: str) -> None:
@@ -25,18 +16,17 @@ class HashHandler:
     self.hashed_password = self._convert_to_hash()
     self.response_api = []
     
-  def fetch(self) -> Response | None:
+  def fetch(self) -> list :
     with get(f"{self.URL}{self.hashed_password[:5]}") as response:
       response_api = response.text.splitlines() 
       return response_api
 
-  def _convert_to_hash(self) -> list:
+  def _convert_to_hash(self) -> str:
     return sha1(self.password.encode('utf-8')).hexdigest()
 
   def is_found(self) -> bool:
     self.response_api = self.fetch()
     found = []
-    # for sublist in hash_list: 
     for i, item in enumerate(self.response_api):
       if self.hashed_password.upper() == f"{self.hashed_password[:5].upper()}{item.partition(":")[0]}":
         found.append(self.hashed_password)
@@ -52,7 +42,7 @@ class FileReader:
          return [line.strip() for line in fin if line.strip()]
                         
 class FileWriter:
-    def __init__(self, file_out: str, text_to_write: str) -> None:
+    def __init__(self, file_out: Path, text_to_write: str) -> None:
       self.file_out = file_out
       self.text_to_write = text_to_write
 
@@ -67,13 +57,13 @@ class PasswordValidator:
   def check_length(self) -> bool:
     return len(self.password) > 8
 
-  def check_contain_number(self)-> bool:
+  def check_contain_number(self) -> bool:
     return any(char.isdigit for char in self.password)
       
-  def check_contain_special_char(self)-> bool:
+  def check_contain_special_char(self) -> bool:
     return any(char in punctuation for char in self.password)
 
-  def check_upper_lower(self)-> bool:
+  def check_upper_lower(self) -> bool:
     has_upper = any(char.isupper() for char in self.password)
     has_lower = any(char.islower() for char in self.password)
     return has_upper and has_lower
@@ -95,12 +85,14 @@ class PasswordValidator:
 def main():
   file = FileReader(Path('passwords.txt'))
   password_list = file.read_file()
+  unsafe_passwords = []
   for password in password_list:
     PasswordValidator(password).validate()
     password_hash = HashHandler(password)
     found = password_hash.is_found()
     if found:
-      logging.critical(password)
-
+      unsafe_passwords.append(password)
+  FileWriter(Path('unsafe_passwords.txt'), "\n".join(unsafe_passwords)).write_to_file()
+  
 main()
 
