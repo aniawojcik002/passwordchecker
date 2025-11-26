@@ -14,7 +14,7 @@ class HashHandler:
   def __init__(self, password: str) -> None:
     self.password = password
     self.hashed_password = self._convert_to_hash()
-    self.response_api = []
+    self.response_api = self.fetch()
     
   def fetch(self) -> list :
     with get(f"{self.URL}{self.hashed_password[:5]}") as response:
@@ -25,7 +25,6 @@ class HashHandler:
     return sha1(self.password.encode('utf-8')).hexdigest()
 
   def is_found(self) -> bool:
-    self.response_api = self.fetch()
     found = []
     for i, item in enumerate(self.response_api):
       if self.hashed_password.upper() == f"{self.hashed_password[:5].upper()}{item.partition(":")[0]}":
@@ -93,6 +92,6 @@ def main():
     if found:
       unsafe_passwords.append(password)
   FileWriter(Path('unsafe_passwords.txt'), "\n".join(unsafe_passwords)).write_to_file()
-  
+
 main()
 
